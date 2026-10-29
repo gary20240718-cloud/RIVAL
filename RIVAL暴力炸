@@ -1,5 +1,5 @@
 -- ==========================================
--- 終極完全體：隊友完全隱蔽 + 半透明 UI + 瞬移追擊
+-- 專屬版：@jiaNBB666 (防消失 + 自訂瞬移距離)
 -- ==========================================
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -10,7 +10,8 @@ local Config = {
     Enabled = true, Box = true, Name = true, Distance = true,
     HealthText = true, HealthBar = true, Chams = false,
     FlyEnabled = false, FlyNoclip = true,
-    TPEnabled = false 
+    TPEnabled = false,
+    TP_Distance = 2 -- 預設 2m
 }
 local ESP_Objects = {}
 local Chams_Objects = {}
@@ -26,34 +27,49 @@ local isMenuOpen = true
 -- 強制 UI 顯示
 local GuiParent = pcall(function() return gethui() end) and gethui() or game:GetService("CoreGui")
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "ESP_Ultimate_NoTeam"
+ScreenGui.Name = "ESP_jiaNBB666"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.DisplayOrder = 99999
 ScreenGui.IgnoreGuiInset = true
 ScreenGui.Parent = GuiParent
 
 -- ==========================================
--- 1. 主選單 UI (半透明 + 可折疊)
+-- 1. 主選單 UI (固定不可拖)
 -- ==========================================
 local MainFrame = Instance.new("Frame")
 MainFrame.Size = UDim2.new(0, 280, 0, 260)
-MainFrame.Position = UDim2.new(0.5, -140, 0.1, 0)
+MainFrame.Position = UDim2.new(0.5, -140, 0.1, 0) -- 固定在正上方
 MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 MainFrame.BackgroundTransparency = 0.3
 MainFrame.BorderSizePixel = 0
 MainFrame.Parent = ScreenGui
 local UICorner = Instance.new("UICorner") UICorner.CornerRadius = UDim.new(0, 8) UICorner.Parent = MainFrame
 
-local TitleBar = Instance.new("TextButton")
+local TitleBar = Instance.new("Frame")
 TitleBar.Size = UDim2.new(1, 0, 0, 30)
 TitleBar.BackgroundColor3 = Color3.fromRGB(0, 255, 200)
 TitleBar.BackgroundTransparency = 0.2
-TitleBar.Text = "≡ CYBER ESP ≡  (點擊折疊)"
-TitleBar.TextColor3 = Color3.fromRGB(0, 0, 0)
-TitleBar.Font = Enum.Font.SourceSansBold
-TitleBar.TextSize = 14
 TitleBar.Parent = MainFrame
 local TitleCorner = Instance.new("UICorner") TitleCorner.CornerRadius = UDim.new(0, 8) TitleCorner.Parent = TitleBar
+
+local TitleText = Instance.new("TextLabel")
+TitleText.Size = UDim2.new(1, 0, 1, 0)
+TitleText.BackgroundTransparency = 1
+TitleText.Text = "≡ @jiaNBB666 ≡"
+TitleText.TextColor3 = Color3.fromRGB(0, 0, 0)
+TitleText.Font = Enum.Font.SourceSansBold
+TitleText.TextSize = 14
+TitleText.Parent = TitleBar
+
+-- 折疊按鈕
+local FoldBtn = Instance.new("TextButton")
+FoldBtn.Size = UDim2.new(0, 30, 1, 0)
+FoldBtn.Position = UDim2.new(1, -30, 0, 0)
+FoldBtn.BackgroundTransparency = 1
+FoldBtn.Text = "▼"
+FoldBtn.TextColor3 = Color3.fromRGB(0, 0, 0)
+FoldBtn.Font = Enum.Font.SourceSansBold
+FoldBtn.Parent = TitleBar
 
 local ContentFrame = Instance.new("Frame")
 ContentFrame.Size = UDim2.new(1, 0, 0, 195)
@@ -61,16 +77,16 @@ ContentFrame.Position = UDim2.new(0, 0, 0, 30)
 ContentFrame.BackgroundTransparency = 1
 ContentFrame.Parent = MainFrame
 
-TitleBar.MouseButton1Click:Connect(function()
+FoldBtn.MouseButton1Click:Connect(function()
     isMenuOpen = not isMenuOpen
     if isMenuOpen then
         MainFrame.Size = UDim2.new(0, 280, 0, 260)
         ContentFrame.Visible = true
-        TitleBar.Text = "≡ CYBER ESP ≡  (點擊折疊)"
+        FoldBtn.Text = "▼"
     else
         MainFrame.Size = UDim2.new(0, 280, 0, 30)
         ContentFrame.Visible = false
-        TitleBar.Text = "≡ CYBER ESP ≡  (點擊展開)"
+        FoldBtn.Text = "▲"
     end
 end)
 
@@ -153,6 +169,38 @@ TPToggleBtn.Font = Enum.Font.SourceSansBold
 TPToggleBtn.TextSize = 11
 TPToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 TPToggleBtn.Parent = Page2
+
+-- 瞬移距離選擇按鈕
+local function createTPDistanceBtn(text, posX, posY, distValue)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0.28, 0, 0, 25)
+    btn.Position = UDim2.new(posX, 0, 0, posY)
+    btn.BackgroundColor3 = (Config.TP_Distance == distValue) and Color3.fromRGB(0, 255, 200) or Color3.fromRGB(50, 50, 50)
+    btn.TextColor3 = (Config.TP_Distance == distValue) and Color3.fromRGB(0, 0, 0) or Color3.fromRGB(255, 255, 255)
+    btn.Text = text
+    btn.Font = Enum.Font.SourceSansBold
+    btn.TextSize = 11
+    btn.Parent = Page2
+    
+    btn.MouseButton1Click:Connect(function()
+        Config.TP_Distance = distValue
+        -- 重置所有按鈕顏色
+        for _, child in pairs(Page2:GetChildren()) do
+            if child:IsA("TextButton") and (child.Text == "2m" or child.Text == "5m" or child.Text == "0m") then
+                child.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+                child.TextColor3 = Color3.fromRGB(255, 255, 255)
+            end
+        end
+        -- 高亮當前選中
+        btn.BackgroundColor3 = Color3.fromRGB(0, 255, 200)
+        btn.TextColor3 = Color3.fromRGB(0, 0, 0)
+    end)
+end
+
+createTPDistanceBtn("2m", 0.03, 71, 2)
+createTPDistanceBtn("5m", 0.36, 71, 5)
+createTPDistanceBtn("0m", 0.69, 71, 0)
+
 
 TPToggleBtn.MouseButton1Click:Connect(function()
     Config.TPEnabled = not Config.TPEnabled
@@ -300,11 +348,14 @@ local function onCharacterAdded(character)
 end
 LocalPlayer.CharacterAdded:Connect(onCharacterAdded)
 
-local function createNativeESP(targetPlayer)
-    if targetPlayer == LocalPlayer then return end
+-- 【核心防消失】每次渲染都檢查並強制重建 UI
+local function forceCreateESP(targetPlayer)
     local character = targetPlayer.Character
     if not character or not character:FindFirstChild("Head") then return end
     local head = character.Head
+    
+    -- 檢查是否已經存在，若存在且正常則不重建
+    if head:FindFirstChild("Native_ESP_UI") then return end
 
     local billboard = Instance.new("BillboardGui")
     billboard.Name = "Native_ESP_UI"
@@ -318,7 +369,7 @@ local function createNativeESP(targetPlayer)
     nameLabel.Name = "Name"
     nameLabel.Size = UDim2.new(1, 0, 0.4, 0)
     nameLabel.BackgroundTransparency = 1
-    nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255) -- 因為隊友已經被過濾，所以敵人統一白色
+    nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
     nameLabel.TextStrokeTransparency = 0
     nameLabel.TextScaled = true
     nameLabel.Font = Enum.Font.SourceSansBold
@@ -354,13 +405,6 @@ local function createNativeESP(targetPlayer)
         billboard = billboard, nameLabel = nameLabel,
         healthText = healthText, healthBar = healthBar, healthBg = healthBg
     }
-end
-
-local function removeNativeESP(targetPlayer)
-    if ESP_Objects[targetPlayer] then
-        if ESP_Objects[targetPlayer].billboard then ESP_Objects[targetPlayer].billboard:Destroy() end
-        ESP_Objects[targetPlayer] = nil
-    end
 end
 
 local lastUpdate = 0
@@ -425,14 +469,27 @@ RunService.RenderStepped:Connect(function()
         if closestPlayer and closestPlayer.Character and closestPlayer.Character:FindFirstChild("HumanoidRootPart") then
             local enemyRoot = closestPlayer.Character.HumanoidRootPart
             local enemyLook = enemyRoot.CFrame.LookVector
-            local targetPos = enemyRoot.Position + (enemyLook * 3)
+            
+            -- 根據設定的距離計算位置
+            local targetPos
+            if Config.TP_Distance == 0 then
+                targetPos = enemyRoot.Position -- 0m 完全重疊
+            elseif Config.TP_Distance == 5 then
+                targetPos = enemyRoot.Position + Vector3.new(0, 3.5, 0) -- 5m 飛到頭上 (考量頭部高度)
+            else
+                targetPos = enemyRoot.Position + (enemyLook * Config.TP_Distance) -- 預設 2m (面前)
+            end
+            
             myRoot.CFrame = CFrame.new(targetPos, enemyRoot.Position) 
         end
     end
 
     -- 透視渲染
     if not Config.Enabled then
-        for plr, _ in pairs(ESP_Objects) do removeNativeESP(plr) end
+        for plr, _ in pairs(ESP_Objects) do 
+            if ESP_Objects[plr].billboard then ESP_Objects[plr].billboard:Destroy() end
+        end
+        ESP_Objects = {}
         return
     end
 
@@ -441,7 +498,6 @@ RunService.RenderStepped:Connect(function()
     lastUpdate = tick
 
     for _, player in ipairs(Players:GetPlayers()) do
-        -- 【重要】排除自己和隊友
         if player ~= LocalPlayer and not isTeammate(player) and player.Character then
             local head = player.Character:FindFirstChild("Head")
             local root = player.Character:FindFirstChild("HumanoidRootPart")
@@ -450,48 +506,16 @@ RunService.RenderStepped:Connect(function()
             if head and root and humanoid and humanoid.Health > 0 and myRoot then
                 local dist = (myRoot.Position - root.Position).Magnitude
                 
+                -- 超出距離就強制刪除
                 if dist > MaxDistance then
-                    removeNativeESP(player)
+                    if ESP_Objects[player] then
+                        ESP_Objects[player].billboard:Destroy()
+                        ESP_Objects[player] = nil
+                    end
                     continue
                 end
 
-                if not ESP_Objects[player] then createNativeESP(player) end
+                -- 檢查並強制建立
+                forceCreateESP(player)
                 
-                local ui = ESP_Objects[player]
-                if ui then
-                    ui.nameLabel.Visible = Config.Name or Config.Distance
-                    if Config.Name and Config.Distance then
-                        ui.nameLabel.Text = player.Name .. " [" .. math.floor(dist) .. "m]"
-                    elseif Config.Name then
-                        ui.nameLabel.Text = player.Name
-                    elseif Config.Distance then
-                        ui.nameLabel.Text = "[" .. math.floor(dist) .. "m]"
-                    end
-                    
-                    ui.healthText.Visible = Config.HealthText
-                    ui.healthText.Text = math.floor(humanoid.Health) .. " HP"
-                    
-                    ui.healthBg.Visible = Config.HealthBar
-                    if Config.HealthBar then
-                        local ratio = humanoid.Health / humanoid.MaxHealth
-                        ui.healthBar.Size = UDim2.new(1, 0, ratio, 0)
-                        ui.healthBar.BackgroundColor3 = (ratio < 0.3) and Color3.fromRGB(255, 0, 0) or Color3.fromRGB(0, 255, 0)
-                    end
-                end
-
-                -- 全身染色 (因為已排除隊友，這裡一定是染紅色)
-                if Config.Chams then
-                    if not Chams_Objects[player] then
-                        local h = Instance.new("Highlight")
-                        h.FillColor = Color3.fromRGB(255, 50, 50)
-                        h.FillTransparency = 0.5
-                        h.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-                        h.Adornee = player.Character
-                        h.Parent = player.Character
-                        Chams_Objects[player] = {Highlight = h}
-                    end
-                end
-            end
-        end
-    end
-end)
+                l
